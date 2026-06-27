@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -328,11 +329,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Cover Image Updated Successfully"));
 });
 
-const getUserChannelProfile = asyncHandler(async (req, res) => {
+const getUserChannnelProfile = asyncHandler(async (req, res) => {
   const { userName } = req.params;
 
   if (!userName) {
-    throw new ApiError(400, "UserName is Missing");
+    throw new ApiError(400, "User Name is Missing");
   }
 
   const channel = await User.aggregate([
@@ -359,10 +360,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       $addFields: {
-        subscribersCount: {
+        subscriberCount: {
           $size: "$subscribers",
         },
-
         channelSubscribedToCount: {
           $size: "$subscribedTo",
         },
@@ -382,26 +382,76 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         email: 1,
         avatar: 1,
         coverImage: 1,
-        subscribersCount: 1,
+        subscriberCount: 1,
         channelSubscribedToCount: 1,
         isSubscribed: 1,
       },
     },
   ]);
 
-  console.log("Aggregation Response : Getting Channel Info", channel);
+  console.log("Channel Aggregation Pipeline", channel);
 
-  if (!channel.length) {
-    throw new ApiError(404, "channel does not exists");
+  if (!channel?.length) {
+    throw new ApiError(404, "Channel does not exists");
   }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User Channel Data Fetched Successfully")
+    );
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user?._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    userName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
 
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        channel[0],
-        "User Channel Data fetched successfully!"
+        user[0]?.watchHistory,
+        "History Fetched Successfully"
       )
     );
 });
@@ -415,4 +465,5 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannnelProfile,
 };
