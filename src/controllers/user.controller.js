@@ -280,8 +280,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is missing");
   }
 
-  fs.unlinkSync(avatarLocalPath);
-
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatar?.url) {
@@ -307,8 +305,6 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   if (!coverImageLocalPath) {
     throw new ApiError(400, "Cover Image file is missing");
   }
-
-  fs.unlinkSync(coverImageLocalPath);
 
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
@@ -460,10 +456,12 @@ export {
   registerUser,
   loginUser,
   logoutUser,
+  refrehToken,
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
   getUserChannnelProfile,
+  getWatchHistory,
 };
